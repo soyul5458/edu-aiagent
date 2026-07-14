@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🌱 AI 에이전트 스튜디오
 
-## Getting Started
+Claude Code 교육용 플랫폼입니다. 수강생이 Claude(웹)에게 받은 아이디어 기획서를 붙여넣으면,
+**수업 시간 안에 완성 가능한 짧은 MVP 프롬프트**로 자동으로 다듬어 주고,
+모든 수강생의 아이디어를 **갤러리에서 카테고리별로 공유**합니다.
 
-First, run the development server:
+## 전체 워크플로우
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+[수강생]  Claude(웹)에게 아이디어 기획서 받기
+   ↓ 복사해서 붙여넣기
+[이 플랫폼]  Claude API(Opus 4.8)가 Claude Code 모범사례 기반으로 정제
+   ·  핵심 기능 1개로 범위 축소
+   ·  단일 index.html (서버/DB/라이브러리 없음)으로 스택 단순화
+   ·  완성 확인 체크리스트 포함, 2,000자 이내로 압축
+   ·  제목/카테고리/태그/요약 자동 생성 → DB 저장
+   ↓ 복사 버튼 한 번
+[Claude Code]  붙여넣기 → 10분 안에 기초 MVP 완성
+   ↓ 자동
+[아이디어 갤러리]  전체 수강생 아이디어를 카테고리별 목록화·공유
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 실행 방법
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# 1. (필수) AI API 키 설정 — .env.local에 사용하는 회사의 키를 입력
+#    자동 인식: FIREWORKS_API_KEY / OPENAI_API_KEY / GROQ_API_KEY /
+#              TOGETHER_API_KEY / OPENROUTER_API_KEY / DEEPSEEK_API_KEY /
+#              XAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY
+#    목록에 없는 회사(OpenAI 호환 API):
+#      AI_PROVIDER=custom + AI_BASE_URL + AI_API_KEY + AI_MODEL
+#    모델 변경: AI_MODEL=원하는모델 (비우면 제공자별 기본값)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# 2. 실행
+npm install
+npm run dev        # 개발용 (http://localhost:3000)
 
-## Learn More
+# 수업(운영)용
+npm run build
+npm start
+```
 
-To learn more about Next.js, take a look at the following resources:
+같은 와이파이의 수강생들이 접속하려면: `npm run dev -- -H 0.0.0.0`
+(또는 `npm start -- -H 0.0.0.0`) 후 강사 컴퓨터의 IP 주소로 접속
+→ `http://강사IP:3000`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 첫 로그인
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+최초 실행 시 관리자 계정이 자동 생성됩니다.
 
-## Deploy on Vercel
+| 아이디 | 비밀번호 |
+| ------ | -------- |
+| `admin` | `admin1234` |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+> 로그인 후 **관리자 페이지에서 반드시 비밀번호를 변경**하세요
+> (계정 목록에서 본인 계정의 [비밀번호] 버튼).
+> 기본값을 바꾸려면 `.env.local`의 `ADMIN_USERNAME` / `ADMIN_PASSWORD`를 사용하세요.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 화면 구성
+
+| 경로 | 대상 | 설명 |
+| ---- | ---- | ---- |
+| `/login` | 전체 | 강사가 발급한 아이디/비밀번호로 로그인 |
+| `/` | 수강생 | **내 작업실** — 기획서 붙여넣기 → MVP 프롬프트 생성 → 복사. 내 기록 관리 |
+| `/gallery` | 전체 | **아이디어 갤러리** — 전체 아이디어 검색·카테고리 필터·상세 보기 |
+| `/admin` | 관리자 | 계정 발급(원하는 아이디/비밀번호), 비밀번호 재설정, 삭제, 수업 현황 |
+
+## 데이터
+
+- 모든 데이터는 `data/platform.db` (SQLite, Node 내장 — 별도 설치 불필요)에 저장됩니다.
+- 백업: `data/` 폴더를 통째로 복사하면 됩니다.
+- 초기화: 서버를 끄고 `data/platform.db` 를 삭제하면 처음 상태(관리자 계정만 존재)로 돌아갑니다.
+
+## 기술 스택
+
+- Next.js 16 (App Router) + TypeScript + Tailwind CSS 4
+- Node 내장 SQLite (`node:sqlite`) — 네이티브 모듈 컴파일 불필요
+- Claude API (`claude-opus-4-8`, 구조화 출력 + 적응형 사고)
+- 세션: JWT(HttpOnly 쿠키), 비밀번호: bcrypt 해시
