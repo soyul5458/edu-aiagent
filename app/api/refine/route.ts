@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { getDb, toPlainOne, type SubmissionRow } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { refineIdea } from "@/lib/refine";
+import { AIConfigError } from "@/lib/ai";
 
 // Claude 호출은 30초~2분가량 걸릴 수 있음
 export const maxDuration = 300;
@@ -57,6 +58,37 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ submission: row });
   } catch (e) {
+    // lib/ai.ts에서 던진 설정 에러 (관리자 대상)
+    if (e instanceof AIConfigError) {
+      return NextResponse.json(
+        { error: e.message },
+        { status: 500 }
+      );
+    }
+
+    // lib/ai.ts에서 던진 일반 에러 (사용자 대상 - 재시도 권유)
+    if (e instanceof Error && e.message) {
+      // 설정 에러인지 확인
+      if (
+        e.message.includes("API 키") ||
+        e.message.includes("크레딧") ||
+        e.message.includes("모델") ||
+        e.message.includes("env.local") ||
+        e.message.includes("관리자")
+      ) {
+        return NextResponse.json(
+          { error: e.message },
+          { status: 500 }
+        );
+      }
+      // 사용자 재시도 에러
+      return NextResponse.json(
+        { error: e.message },
+        { status: 429 }
+      );
+    }
+
+    // SDK 레벨 에러 (호환성 유지)
     if (e instanceof Anthropic.AuthenticationError) {
       return NextResponse.json(
         { error: "Claude API 인증에 실패했습니다. 서버의 ANTHROPIC_API_KEY 설정을 확인해 주세요. (관리자 문의)" },
@@ -75,16 +107,10 @@ export async function POST(req: Request) {
         { status: 502 }
       );
     }
-    const raw = e instanceof Error ? e.message : "";
-    if (raw.includes("Could not resolve authentication method")) {
-      return NextResponse.json(
-        { error: "Claude API 키가 설정되어 있지 않습니다. 서버의 .env.local 파일에 ANTHROPIC_API_KEY를 넣어 주세요. (관리자 문의)" },
-        { status: 500 }
-      );
-    }
+
     console.error("[refine] error:", e);
     return NextResponse.json(
-      { error: raw || "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요." },
+      { error: "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요." },
       { status: 500 }
     );
   }

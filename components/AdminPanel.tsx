@@ -28,6 +28,37 @@ export default function AdminPanel({
   const [creating, setCreating] = useState(false);
   const [exportMsg, setExportMsg] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [csvMsg, setCsvMsg] = useState("");
+  const [csvExporting, setCsvExporting] = useState(false);
+
+  async function exportCsv() {
+    setCsvExporting(true);
+    setCsvMsg("");
+    try {
+      const res = await fetch("/api/admin/export-csv", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json();
+        setCsvMsg(data.error ?? "내보내기에 실패했습니다.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        res.headers
+          .get("content-disposition")
+          ?.split("filename=")[1]
+          ?.replace(/"/g, "") || "gallery.csv";
+      a.click();
+      window.URL.revokeObjectURL(url);
+      setCsvMsg("갤러리가 CSV로 다운로드됐어요.");
+    } catch {
+      setCsvMsg("서버에 연결할 수 없습니다.");
+    } finally {
+      setCsvExporting(false);
+    }
+  }
 
   async function exportObsidian() {
     setExporting(true);
@@ -260,6 +291,30 @@ export default function AdminPanel({
               {exportMsg && (
                 <p className="mt-3 rounded-xl bg-cream px-3.5 py-2.5 text-[13px] text-soft">
                   {exportMsg}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* CSV 내보내기 */}
+          <div className="mt-6">
+            <h2 className="mb-3 font-bold">갤러리 전체 내보내기 (CSV)</h2>
+            <div className="rounded-2xl border border-line bg-surface p-5 shadow-card">
+              <p className="text-[13px] leading-relaxed text-muted">
+                모든 아이디어를 CSV 파일로 내보냅니다. Excel이나 Google Sheets에서
+                열 수 있으며, 수업 후 자료 보관용으로 사용하세요.
+              </p>
+              <button
+                type="button"
+                onClick={exportCsv}
+                disabled={csvExporting}
+                className="mt-3 w-full rounded-xl bg-accent py-2.5 font-bold text-white transition-colors hover:bg-accent-deep disabled:opacity-60"
+              >
+                {csvExporting ? "내보내는 중…" : "CSV로 다운로드"}
+              </button>
+              {csvMsg && (
+                <p className="mt-3 rounded-xl bg-cream px-3.5 py-2.5 text-[13px] text-soft">
+                  {csvMsg}
                 </p>
               )}
             </div>

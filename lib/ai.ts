@@ -277,25 +277,72 @@ async function chatJSONAnthropic(
   schema: Record<string, unknown>
 ): Promise<string> {
   const client = new Anthropic({ apiKey: p.apiKey });
-  const response = await client.messages.create({
-    model: p.model,
-    max_tokens: 16000,
-    thinking: { type: "adaptive" },
-    system: systemPrompt,
-    messages: [{ role: "user", content: userMessage }],
-    output_config: { format: { type: "json_schema", schema } },
-  });
 
-  if (response.stop_reason === "refusal") {
+  try {
+    const response = await client.messages.create({
+      model: p.model,
+      max_tokens: 16000,
+      thinking: { type: "adaptive" },
+      system: systemPrompt,
+      messages: [{ role: "user", content: userMessage }],
+      output_config: { format: { type: "json_schema", schema } },
+    });
+
+    if (response.stop_reason === "refusal") {
+      throw new Error(
+        "안전상의 이유로 요청이 거절되었습니다. 아이디어 내용을 확인한 뒤 다시 시도해 주세요."
+      );
+    }
+    const textBlock = response.content.find((b) => b.type === "text");
+    if (!textBlock || textBlock.type !== "text") {
+      throw new Error("모델 응답에서 결과를 찾지 못했습니다. 다시 시도해 주세요.");
+    }
+    return textBlock.text;
+  } catch (err) {
+    // Anthropic SDK 에러 처리
+    if (err instanceof Error) {
+      const msg = err.message.toLowerCase();
+
+      if (msg.includes("401") || msg.includes("invalid api key")) {
+        throw new AIConfigError(
+          `${p.label} API 키가 유효하지 않습니다. 키를 다시 확인해 .env.local에 넣어 주세요. (관리자 문의)`
+        );
+      }
+      if (msg.includes("402") || msg.includes("insufficient_quota")) {
+        throw new AIConfigError(
+          `${p.label} 크레딧이 부족합니다. 결제 상태를 확인해 주세요. (관리자 문의)`
+        );
+      }
+      if (msg.includes("429") || msg.includes("rate_limit")) {
+        throw new Error(
+          "지금 요청이 몰려 있어요. 30초 정도 기다렸다가 다시 시도해 주세요."
+        );
+      }
+      if (msg.includes("500") || msg.includes("server error")) {
+        throw new Error(
+          `${p.label} 서버에 일시적인 문제가 발생했어요. 1분 후 다시 시도해 주세요.`
+        );
+      }
+      if (msg.includes("timeout")) {
+        throw new Error(
+          "요청 처리 시간이 초과됐어요. 다시 시도해 주세요. 계속 문제가 있으면 관리자에게 알려주세요."
+        );
+      }
+
+      // 이미 처리된 에러는 그대로 전파
+      if (err instanceof AIConfigError || err.message.includes("안전상") || err.message.includes("결과를")) {
+        throw err;
+      }
+
+      throw new Error(
+        `${p.label} 호출 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요. (계속 문제가 있으면 관리자 문의)`
+      );
+    }
+
     throw new Error(
-      "안전상의 이유로 요청이 거절되었습니다. 아이디어 내용을 확인한 뒤 다시 시도해 주세요."
+      "알 수 없는 오류가 발생했어요. 잠시 후 다시 시도해 주세요."
     );
   }
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("모델 응답에서 결과를 찾지 못했습니다. 다시 시도해 주세요.");
-  }
-  return textBlock.text;
 }
 
 async function chatJSONOpenAICompat(
@@ -416,9 +463,32 @@ async function chatJSONOpenAICompat(
       }
       if (adjusted) continue;
     }
+
+    // 5xx 에러 또는 기타 오류
+    if (res.status >= 500) {
+      throw new Error(
+        `${p.label} 서버에 일시적인 문제가 발생했어요. 1분 후 다시 시도해 주세요. (상태: ${res.status})`
+      );
+    }
+
     break;
   }
 
   console.error(`[ai:${p.id}] 호출 실패:`, lastErrorBody.slice(0, 500));
-  throw new Error("AI 서버 호출에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+
+  // 응답이 있지만 예상 형식이 아닌 경우 더 구체적인 메시지
+  if (lastErrorBody) {
+    const errorType = lastErrorBody.includes("rate_limit")
+      ? "요청이 몰려있어 처리할 수 없어요"
+      : lastErrorBody.includes("invalid")
+        ? "입력 형식 오류가 발생했어요"
+        : "AI 서버에서 오류를 반환했어요";
+    throw new Error(
+      `${errorType}. 잠시 후 다시 시도해 주세요. 계속 문제가 있으면 관리자에게 알려주세요.`
+    );
+  }
+
+  throw new Error(
+    "AI 서버에 연결할 수 없어요. 인터넷 연결을 확인하고 다시 시도해 주세요. (계속 문제가 있으면 관리자 문의)"
+  );
 }

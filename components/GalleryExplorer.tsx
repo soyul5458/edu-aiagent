@@ -34,23 +34,25 @@ export default function GalleryExplorer({
 
   return (
     <div className="animate-fade-up space-y-6">
-      <section>
-        <h1 className="text-2xl font-bold tracking-tight">아이디어 갤러리</h1>
-        <p className="mt-1 text-[15px] text-muted">
-          우리 반 모두가 만들고 있는 아이디어{" "}
-          <b className="text-accent-deep">{submissions.length}개</b> —
-          어떤 것들이 만들어지고 있는지 구경해 보세요.
-        </p>
-      </section>
-
-      <section className="space-y-3">
+      <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">아이디어 갤러리</h1>
+          <p className="mt-1 text-[15px] text-muted">
+            우리 반 모두가 만들고 있는 아이디어{" "}
+            <b className="text-accent-deep">{submissions.length}개</b> —
+            어떤 것들이 만들어지고 있는지 구경해 보세요.
+          </p>
+        </div>
         <input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="제목, 요약, 태그, 만든 사람으로 검색"
-          className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-[15px] shadow-card outline-none transition-colors placeholder:text-muted/70 focus:border-accent"
+          placeholder="제목, 태그로 검색"
+          className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-[15px] shadow-card outline-none transition-colors placeholder:text-muted/70 focus:border-accent sm:w-64 sm:flex-shrink-0"
         />
+      </section>
+
+      <section className="space-y-3">
         <div className="flex flex-wrap gap-1.5">
           <CategoryChip
             label="전체"
