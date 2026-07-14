@@ -31,25 +31,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "이름을 입력해 주세요." }, { status: 400 });
   }
 
-  const db = getDb();
-  const exists = db
-    .prepare("SELECT id FROM users WHERE username = ?")
-    .get(username);
-  if (exists) {
+  const db = await getDb();
+  const existsResult = await db.query(
+    "SELECT id FROM users WHERE username = $1",
+    [username]
+  );
+  if (existsResult.rows.length > 0) {
     return NextResponse.json(
       { error: `"${username}" 아이디는 이미 사용 중입니다.` },
       { status: 409 }
     );
   }
 
-  const info = db
-    .prepare(
-      "INSERT INTO users (username, password_hash, name, role) VALUES (?, ?, ?, ?)"
-    )
-    .run(username, bcrypt.hashSync(password, 10), name, role);
+  const infoResult = await db.query(
+    "INSERT INTO users (username, password_hash, name, role) VALUES ($1, $2, $3, $4) RETURNING id",
+    [username, bcrypt.hashSync(password, 10), name, role]
+  );
+  const insertedId = infoResult.rows[0].id;
 
   return NextResponse.json({
     ok: true,
-    user: { id: info.lastInsertRowid, username, name, role },
+    user: { id: insertedId, username, name, role },
   });
 }

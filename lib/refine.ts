@@ -20,6 +20,7 @@ export type RefineResult = {
   summary: string;
   tags: string[];
   refined_md: string;
+  prompt?: string;
 };
 
 const SYSTEM_PROMPT = `당신은 "Claude Code 첫 수업"을 진행하는 교육 조교입니다.
@@ -108,6 +109,7 @@ export async function refineIdea(originalMd: string): Promise<RefineResult> {
 
   const parsed = JSON.parse(json) as RefineResult;
 
+  const refined = String(parsed.refined_md ?? "");
   return {
     title: String(parsed.title ?? "이름 없는 프로젝트").slice(0, 40),
     category: CATEGORIES.includes(
@@ -119,6 +121,7 @@ export async function refineIdea(originalMd: string): Promise<RefineResult> {
     tags: Array.isArray(parsed.tags)
       ? parsed.tags.slice(0, 5).map((t) => String(t).slice(0, 20))
       : [],
-    refined_md: String(parsed.refined_md ?? ""),
+    refined_md: refined,
+    prompt: refined,
   };
 }

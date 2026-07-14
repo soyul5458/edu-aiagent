@@ -33,13 +33,12 @@ export async function POST(req: Request) {
   try {
     const result = await refineIdea(original);
 
-    const db = getDb();
-    const info = db
-      .prepare(
-        `INSERT INTO submissions (user_id, author_name, title, category, summary, tags, original_md, refined_md)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
+    const db = await getDb();
+    const insertResult = await db.query(
+      `INSERT INTO submissions (user_id, author_name, title, category, summary, tags, original_md, refined_md, prompt)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
         session.id,
         session.name,
         result.title,
@@ -47,14 +46,12 @@ export async function POST(req: Request) {
         result.summary,
         JSON.stringify(result.tags),
         original,
-        result.refined_md
-      );
-
-    const row = toPlainOne<SubmissionRow>(
-      db
-        .prepare("SELECT * FROM submissions WHERE id = ?")
-        .get(info.lastInsertRowid as number)
+        result.refined_md,
+        result.prompt || "",
+      ]
     );
+
+    const row = toPlainOne<SubmissionRow>(insertResult.rows[0]);
 
     return NextResponse.json({ submission: row });
   } catch (e) {

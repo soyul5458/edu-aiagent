@@ -17,10 +17,12 @@ export async function DELETE(
     return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
   }
 
-  const db = getDb();
-  const row = db
-    .prepare("SELECT user_id FROM submissions WHERE id = ?")
-    .get(submissionId) as { user_id: number } | undefined;
+  const db = await getDb();
+  const result = await db.query(
+    "SELECT user_id FROM submissions WHERE id = $1",
+    [submissionId]
+  );
+  const row = result.rows[0] as { user_id: number } | undefined;
 
   if (!row) {
     return NextResponse.json({ error: "이미 삭제된 항목입니다." }, { status: 404 });
@@ -29,6 +31,6 @@ export async function DELETE(
     return NextResponse.json({ error: "본인의 아이디어만 삭제할 수 있습니다." }, { status: 403 });
   }
 
-  db.prepare("DELETE FROM submissions WHERE id = ?").run(submissionId);
+  await db.query("DELETE FROM submissions WHERE id = $1", [submissionId]);
   return NextResponse.json({ ok: true });
 }

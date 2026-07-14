@@ -14,13 +14,14 @@ export default async function GalleryDetailPage({
   const submissionId = Number(id);
   if (!Number.isInteger(submissionId)) notFound();
 
-  const db = getDb();
-  const row = db
-    .prepare("SELECT * FROM submissions WHERE id = ?")
-    .get(submissionId);
+  const db = await getDb();
+  const result = await db.query(
+    "SELECT * FROM submissions WHERE id = $1",
+    [submissionId]
+  );
 
-  if (!row) notFound();
-  const submission = toPlainOne<SubmissionRow>(row);
+  if (result.rows.length === 0) notFound();
+  const submission = toPlainOne<SubmissionRow>(result.rows[0]);
 
   const tags = parseTags(submission.tags);
 

@@ -12,16 +12,13 @@ export async function POST() {
   }
 
   try {
-    const db = getDb();
-    const submissions = toPlain<SubmissionRow>(
-      db
-        .prepare(
-          `SELECT id, title, category, summary, tags, prompt, created_at, author_name
-           FROM submissions
-           ORDER BY created_at DESC`
-        )
-        .all()
+    const db = await getDb();
+    const result = await db.query(
+      `SELECT id, title, category, summary, tags, prompt, created_at, author_name
+       FROM submissions
+       ORDER BY created_at DESC`
     );
+    const submissions = toPlain<SubmissionRow>(result.rows);
 
     const headers = [
       "ID",

@@ -33,12 +33,13 @@ export async function PATCH(
     );
   }
 
-  const db = getDb();
-  const info = db
-    .prepare("UPDATE users SET password_hash = ? WHERE id = ?")
-    .run(bcrypt.hashSync(password, 10), userId);
+  const db = await getDb();
+  const result = await db.query(
+    "UPDATE users SET password_hash = $1 WHERE id = $2",
+    [bcrypt.hashSync(password, 10), userId]
+  );
 
-  if (info.changes === 0) {
+  if (result.rowCount === 0) {
     return NextResponse.json({ error: "존재하지 않는 계정입니다." }, { status: 404 });
   }
   return NextResponse.json({ ok: true });
@@ -65,9 +66,9 @@ export async function DELETE(
     );
   }
 
-  const db = getDb();
-  const info = db.prepare("DELETE FROM users WHERE id = ?").run(userId);
-  if (info.changes === 0) {
+  const db = await getDb();
+  const result = await db.query("DELETE FROM users WHERE id = $1", [userId]);
+  if (result.rowCount === 0) {
     return NextResponse.json({ error: "존재하지 않는 계정입니다." }, { status: 404 });
   }
   return NextResponse.json({ ok: true });

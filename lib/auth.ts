@@ -1,7 +1,5 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
-import path from "node:path";
-import fs from "node:fs";
 import crypto from "node:crypto";
 import type { SessionUser } from "./db";
 
@@ -12,23 +10,24 @@ let cachedSecret: Uint8Array | null = null;
 
 function getSecret(): Uint8Array {
   if (cachedSecret) return cachedSecret;
+
   const env = process.env.SESSION_SECRET;
-  if (env && env.length >= 16) {
-    cachedSecret = new TextEncoder().encode(env);
-    return cachedSecret;
+  if (!env) {
+    throw new Error(
+      "SESSION_SECRET 환경 변수가 설정되어 있지 않습니다. " +
+        ".env.local 파일에 SESSION_SECRET=<32바이트 이상의 무작위 문자열> 형태로 추가해 주세요. " +
+        "생성 명령어: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
+    );
   }
-  // 환경변수가 없으면 data/ 아래에 시크릿을 생성·보관해 재시작 후에도 세션 유지
-  const dataDir = path.join(process.cwd(), "data");
-  fs.mkdirSync(dataDir, { recursive: true });
-  const secretFile = path.join(dataDir, ".session-secret");
-  if (!fs.existsSync(secretFile)) {
-    fs.writeFileSync(secretFile, crypto.randomBytes(32).toString("hex"), {
-      mode: 0o600,
-    });
+
+  if (env.length < 32) {
+    throw new Error(
+      "SESSION_SECRET은 최소 32자 이상이어야 합니다. " +
+        "생성 명령어: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
+    );
   }
-  cachedSecret = new TextEncoder().encode(
-    fs.readFileSync(secretFile, "utf8").trim()
-  );
+
+  cachedSecret = new TextEncoder().encode(env);
   return cachedSecret;
 }
 

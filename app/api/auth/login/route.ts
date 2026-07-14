@@ -15,10 +15,12 @@ export async function POST(req: Request) {
     );
   }
 
-  const db = getDb();
-  const user = db
-    .prepare("SELECT * FROM users WHERE username = ?")
-    .get(username) as
+  const db = await getDb();
+  const result = await db.query(
+    "SELECT id, username, password_hash, name, role FROM users WHERE username = $1",
+    [username]
+  );
+  const user = result.rows[0] as
     | {
         id: number;
         username: string;

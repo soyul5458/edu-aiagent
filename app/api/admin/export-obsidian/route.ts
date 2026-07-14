@@ -20,10 +20,9 @@ export async function POST() {
     return NextResponse.json({ error: "관리자만 사용할 수 있습니다." }, { status: 403 });
   }
 
-  const db = getDb();
-  const rows = toPlain<SubmissionRow>(
-    db.prepare("SELECT * FROM submissions ORDER BY id ASC").all()
-  );
+  const db = await getDb();
+  const result = await db.query("SELECT * FROM submissions ORDER BY id ASC");
+  const rows = toPlain<SubmissionRow>(result.rows);
 
   const ideasDir = path.join(process.cwd(), "obsidian-vault", "아이디어");
   fs.mkdirSync(ideasDir, { recursive: true });
